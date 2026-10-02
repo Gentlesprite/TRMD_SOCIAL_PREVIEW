@@ -1,0 +1,188 @@
+<!DOCTYPE html><html lang=zh-CN><head><meta charset=UTF-8><title>SP</title>
+<style>
+.stage{position:relative;width:1280px;height:640px;overflow:hidden;background:#000;}
+.bg{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .3s;}
+.bg.on{opacity:.5;}
+.content{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;}
+.brand{display:flex;align-items:center;gap:32px;}
+.logo{width:150px;height:150px;object-fit:contain;filter:drop-shadow(0 6px 24px rgba(0,0,0,.45));}
+.brand-t{
+  font-family:Arial,Helvetica,sans-serif;
+  font-weight:800;
+  font-size:120px;
+  line-height:1;
+  letter-spacing:1px;
+  color:#9ad164;
+  text-shadow:
+    0 2px 18px rgba(0,0,0,.5),
+    0 0 40px rgba(254,196,150,.25);
+  transform:translateY(-14px);
+}
+.t{
+  font-family:Arial,Helvetica,sans-serif;
+  font-weight:700;
+  font-size:52px;
+  color:#80C683;
+  line-height:64px;
+  white-space:nowrap;
+  text-align:center;
+  text-shadow:0 2px 18px rgba(0,0,0,.5);
+}
+.desc{
+  font-family:Arial,Helvetica,sans-serif;
+  font-weight:400;
+  font-size:24px;
+  color:#80C683;
+  line-height:32px;
+  text-align:center;
+  text-shadow:0 2px 12px rgba(0,0,0,.5);
+  margin-top:-20px;
+}
+</style></head><body><div class=stage>
+<canvas class=bg id=bg width=1280 height=640 data-colors="#4f5bd5,#962fbf,#dd6cb9,#fec496"></canvas>
+<div class=content>
+<div class=brand><img class=logo src=../res/logo.png alt=logo><div class=brand-t>TRMD</div></div>
+<div class=t>Telegram Restricted Media Downloader</div>
+<div class=desc>Telegram downloader supports<br>resumable downloads and uploads, bots, forwarding, and monitoring.</div>
+</div></div>
+<script>
+/* 以下逐行移植自 app.js 的渐变背景模块:常量、bgGetGradientImageData(官方混色公式)、
+   bgDrawImageData(destination-in 烘焙涂鸦)、bgDoodleAspect/bgBuildDoodle/bgUpdateDoodleGeometry、
+   bgEnsureSvgSize、bgLoadDoodle。 */
+var BG_GRADIENT_SIZE=100, BG_GRADIENT_BLEND_POWER=3, BG_GRADIENT_STEP=2;
+var BG_GRADIENT_POINTS=[[0.265,0.582],[0.176,0.918],[0.415,0.836],[0.644,0.755],[0.735,0.418],[0.824,0.082],[0.585,0.164],[0.356,0.245]];
+var BG_PATTERN_URL='pattern.svg';
+var BG_PATTERN_TILE=430;
+var BG_PATTERN_ASPECT=2960/1440;   /* 遮罩原图 viewBox 0 0 1440 2960 的高/宽,竖图比例 */
+var BG_W=1280, BG_H=640;
+var bgCanvas,bgCtx,bgHelperCanvas,bgHelperCtx,bgColors=[],bgCurrentPositions=[],bgTargetPositions=[];
+var bgDoodleImg=null,bgDoodlePattern=null,bgDoodleLoader=null,bgDoodleDpr=0;
+var bgDoodleTileW=0,bgDoodleTileH=0,bgDoodleOffX=0,bgDoodleOffY=0;
+var bgImageData=null;
+
+function bgHexToRgb(hex){var v=parseInt(hex.slice(1,7),16);return[(v>>16)&255,(v>>8)&255,v&255];}
+function bgGetPositions(shift){var r=[];for(var i=0;i<4;i++){var p=BG_GRADIENT_POINTS[(shift+i*BG_GRADIENT_STEP)%BG_GRADIENT_POINTS.length];r.push([p[0],p[1]]);}return r;}
+function bgGetGradientImageData(){
+  if(!bgImageData)bgImageData=bgHelperCtx.createImageData(BG_GRADIENT_SIZE,BG_GRADIENT_SIZE);
+  var px=bgImageData.data,size=BG_GRADIENT_SIZE;
+  var p0=bgCurrentPositions[0],p1=bgCurrentPositions[1],p2=bgCurrentPositions[2],p3=bgCurrentPositions[3];
+  var c0=bgColors[0],c1=bgColors[1],c2=bgColors[2],c3=bgColors[3];
+  var o=0;
+  for(var y=0;y<size;y++){var yR=y/size;
+    var ay=yR-p0[1],by=yR-p1[1],cy=yR-p2[1],dy=yR-p3[1];
+    var ay2=ay*ay,by2=by*by,cy2=cy*cy,dy2=dy*dy;
+    for(var x=0;x<size;x++){var xR=x/size;
+      var ax=xR-p0[0],bx=xR-p1[0],cx=xR-p2[0],dx=xR-p3[0];
+      var d0=Math.sqrt(ax*ax+ay2),d1=Math.sqrt(bx*bx+by2),d2=Math.sqrt(cx*cx+cy2),d3=Math.sqrt(dx*dx+dy2);
+      var min=d0;if(d1<min)min=d1;if(d2<min)min=d2;if(d3<min)min=d3;
+      var k0=1-(d0-min),k1=1-(d1-min),k2=1-(d2-min),k3=1-(d3-min);
+      var w0=k0*k0*k0,w1=k1*k1*k1,w2=k2*k2*k2,w3=k3*k3*k3;
+      var t=w0+w1+w2+w3;if(t===0)t=1;
+      var n0=w0/t,n1=w1/t,n2=w2/t,n3=w3/t;
+      px[o++]=c0[0]*n0+c1[0]*n1+c2[0]*n2+c3[0]*n3;
+      px[o++]=c0[1]*n0+c1[1]*n1+c2[1]*n2+c3[1]*n3;
+      px[o++]=c0[2]*n0+c1[2]*n1+c2[2]*n2+c3[2]*n3;
+      px[o++]=255;
+    }
+  }
+  return bgImageData;
+}
+function bgDrawImageData(id){
+  var viewW=bgCanvas.width,viewH=bgCanvas.height;
+  bgHelperCtx.putImageData(id,0,0);
+  bgCtx.save();
+  bgCtx.globalCompositeOperation='source-over';
+  bgCtx.clearRect(0,0,viewW,viewH);
+  bgCtx.imageSmoothingEnabled=true;
+  bgCtx.drawImage(bgHelperCanvas,0,0,BG_GRADIENT_SIZE,BG_GRADIENT_SIZE,0,0,viewW,viewH);
+  if(bgDoodlePattern){
+    bgCtx.globalCompositeOperation='destination-in';
+    bgCtx.setTransform(1,0,0,1,0,0);
+    bgCtx.translate(bgDoodleOffX,bgDoodleOffY);
+    bgCtx.fillStyle=bgDoodlePattern;
+    bgCtx.fillRect(-bgDoodleOffX,-bgDoodleOffY,viewW,viewH);
+  }
+  bgCtx.restore();
+}
+function bgDoodleAspect(){
+  var w=bgDoodleImg.naturalWidth,h=bgDoodleImg.naturalHeight;
+  if(w>0&&h>0){var r=h/w;if(r>1.2&&r<3.0)return r;}
+  return BG_PATTERN_ASPECT;
+}
+function bgBuildDoodle(){
+  if(!bgDoodleImg||!bgCtx)return;
+  var dpr=window.devicePixelRatio||1;
+  if(bgDoodlePattern&&bgDoodleDpr===dpr)return;
+  bgDoodleDpr=dpr;
+  var tileW=Math.max(1,Math.round(BG_PATTERN_TILE*dpr));
+  var tileH=Math.max(1,Math.round(BG_PATTERN_TILE*bgDoodleAspect()*dpr));
+  var tile=document.createElement('canvas');tile.width=tileW;tile.height=tileH;
+  var tctx=tile.getContext('2d');
+  tctx.drawImage(bgDoodleImg,0,0,tileW,tileH);
+  bgDoodlePattern=bgCtx.createPattern(tile,'repeat');
+}
+function bgUpdateDoodleGeometry(){
+  if(!bgDoodleImg||!bgCanvas)return;
+  var dpr=window.devicePixelRatio||1;
+  bgDoodleTileW=BG_PATTERN_TILE*dpr;
+  bgDoodleTileH=bgDoodleTileW*bgDoodleAspect();
+  bgDoodleOffX=((bgCanvas.width-bgDoodleTileW)/2)%bgDoodleTileW;
+  bgDoodleOffY=((bgCanvas.height-bgDoodleTileH)/2)%bgDoodleTileH;
+}
+function bgEnsureSvgSize(text){
+  return text.replace(/<svg([^>]*)>/i,function(m,attrs){
+    if(/\bwidth\s*=/.test(attrs)&&/\bheight\s*=/.test(attrs))return m;
+    var box=attrs.match(/viewBox\s*=\s*["']\s*[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)/i);
+    if(!box)return m;
+    return '<svg'+attrs+' width="'+box[1]+'" height="'+box[2]+'">';
+  });
+}
+function bgLoadDoodle(){
+  bgDoodleLoader=new Image();
+  bgDoodleLoader.onload=function(){
+    bgDoodleImg=bgDoodleLoader;
+    bgUpdateDoodleGeometry();bgBuildDoodle();
+    bgDrawImageData(bgGetGradientImageData());
+    bgCanvas.classList.add('on');
+    if(bgDoodleLoader.src.indexOf('blob:')===0)URL.revokeObjectURL(bgDoodleLoader.src);
+  };
+  bgDoodleLoader.onerror=function(){bgCanvas.classList.add('on');};
+  if(typeof fetch==='function'){
+    fetch(BG_PATTERN_URL).then(function(r){return r.text();}).then(function(t){
+      var blob=new Blob([bgEnsureSvgSize(t)],{type:'image/svg+xml'});
+      bgDoodleLoader.src=URL.createObjectURL(blob);
+    }).catch(function(){bgDoodleLoader.src=BG_PATTERN_URL;});
+  }else{bgDoodleLoader.src=BG_PATTERN_URL;}
+}
+/* 按当前 dpr 重设画布位图尺寸并重绘,避免浏览器缩放后位图被二次拉伸变糊。 */
+function bgApplyDpr(){
+  if(!bgCanvas)return;
+  var dpr=window.devicePixelRatio||1;
+  bgCanvas.width=Math.round(BG_W*dpr);bgCanvas.height=Math.round(BG_H*dpr);
+  bgCanvas.style.width=BG_W+'px';bgCanvas.style.height=BG_H+'px';
+  bgUpdateDoodleGeometry();bgBuildDoodle();bgDrawImageData(bgGetGradientImageData());
+}
+function initBackgroundGradient(){
+  bgCanvas=document.getElementById('bg');
+  bgHelperCanvas=document.createElement('canvas');
+  bgHelperCanvas.width=BG_GRADIENT_SIZE;bgHelperCanvas.height=BG_GRADIENT_SIZE;
+  bgHelperCtx=bgHelperCanvas.getContext('2d',{alpha:false});
+  var colors=(bgCanvas.getAttribute('data-colors')||'').split(',');
+  for(var i=0;i<colors.length;i++){var c=colors[i].trim();if(/^#[0-9a-fA-F]{6}$/.test(c))bgColors.push(bgHexToRgb(c));}
+  if(!bgColors.length)return;
+  bgCurrentPositions=bgGetPositions(0);
+  bgTargetPositions=bgGetPositions(0);
+  bgCtx=bgCanvas.getContext('2d',{alpha:true});
+  bgApplyDpr();
+  bgLoadDoodle();
+}
+initBackgroundGradient();
+/* 监听浏览器缩放(dpr 变化)并重绘,消除 Ctrl+滚轮 缩放后的模糊,无需刷新。 */
+(function bgWatchDpr(){
+  var query=window.matchMedia('(resolution: '+(window.devicePixelRatio||1)+'dppx)');
+  query.addListener(function(){
+    bgApplyDpr();
+    bgWatchDpr();
+  });
+})();
+</script></body></html>
