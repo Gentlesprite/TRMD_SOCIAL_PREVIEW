@@ -22,7 +22,7 @@ def main():
         raise SystemExit("Edge/Chrome not found.")
     html = "file:///" + os.path.join(here, "index.html").replace("\\", "/")
     big = os.path.join(here, "og-image-2x.png")
-    out = os.path.join(here, "og-image.png")
+    out = os.path.join(here, "social_preview.png")
     prof = os.path.join(tempfile.gettempdir(), "og-shot-profile")
     args = [
         browser, "--headless=new", "--disable-gpu", "--hide-scrollbars",
