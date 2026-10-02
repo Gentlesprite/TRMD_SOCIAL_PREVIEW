@@ -9,8 +9,15 @@
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;}
 .bg{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .3s;}
 .bg.on{opacity:.5;}
-.content{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;}
-.brand{display:flex;align-items:center;gap:32px;transform:translateX(-35px);}
+.content{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;
+  padding:60px 84px;border-radius:30px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.2);
+  box-shadow:0 12px 48px rgba(0,0,0,.28);
+  backdrop-filter:blur(16px) saturate(140%);
+  -webkit-backdrop-filter:blur(16px) saturate(140%);}
+.brand{display:flex;align-items:center;gap:32px;}
 .logo{width:150px;height:150px;object-fit:contain;filter:drop-shadow(0 6px 24px rgba(0,0,0,.45));}
 .brand-t{
   font-weight:800;
@@ -48,9 +55,11 @@
 </style></head><body><div class=stage>
 <canvas class=bg id=bg width=1280 height=640 data-colors="#4f5bd5,#962fbf,#dd6cb9,#fec496"></canvas>
 <div class=content>
+<div class=card>
 <div class=brand><img class=logo src=../res/logo.png alt=logo><div class=brand-t>TRMD</div></div>
 <div class=t>Telegram Restricted Media Downloader</div>
 <div class=desc>Telegram downloader supports<br>resumable downloads and uploads, bots, forwarding, and monitoring.</div>
+</div>
 </div></div>
 <script>
 /* 以下逐行移植自 app.js 的渐变背景模块:常量、bgGetGradientImageData(官方混色公式)、
